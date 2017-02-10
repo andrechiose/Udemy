@@ -1,6 +1,6 @@
 local.properties
 .gradle
 build/build
-android-sdk-linux
 build/intermediates
 build/generated
+ParseStarterProject/build
