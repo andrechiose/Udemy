@@ -1,0 +1,6 @@
+local.properties
+.gradle
+build/build
+build/intermediates
+build/generated
+ParseStarterProject/build
