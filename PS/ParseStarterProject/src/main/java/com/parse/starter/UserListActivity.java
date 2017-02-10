@@ -12,11 +12,14 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import com.parse.FindCallback;
+import com.parse.LogOutCallback;
 import com.parse.ParseException;
 import com.parse.ParseFile;
 import com.parse.ParseObject;
@@ -33,6 +36,7 @@ public class UserListActivity extends AppCompatActivity {
 
     ListView userListView;
     ArrayAdapter arrayAdapter;
+    ArrayList<String> usernames;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -57,7 +61,12 @@ public class UserListActivity extends AppCompatActivity {
         if (item.getItemId() == R.id.share_menu) {
             getPhoto();
         } else if (item.getItemId() == R.id.logout_menu) {
-
+            ParseUser.getCurrentUser().logOutInBackground(new LogOutCallback() {
+                @Override
+                public void done(ParseException e) {
+                    finish();
+                }
+            });
         }
         return super.onOptionsItemSelected(item);
     }
@@ -72,6 +81,9 @@ public class UserListActivity extends AppCompatActivity {
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 2);
             }
         }
+
+        setTitle("User feed");
+        usernames = new ArrayList<String>();
 
         userListView = (ListView) findViewById(R.id.listview);
 
@@ -88,9 +100,6 @@ public class UserListActivity extends AppCompatActivity {
                 }
 
                 if (objects != null && objects.size() > 0) {
-
-                    ArrayList<String> usernames = new ArrayList<String>();
-
                     for (ParseUser user : objects) {
                         usernames.add(user.getUsername());
                     }
@@ -98,6 +107,14 @@ public class UserListActivity extends AppCompatActivity {
                     arrayAdapter = new ArrayAdapter(getApplicationContext(), R.layout.userlist_item, usernames);
                     userListView.setAdapter(arrayAdapter);
                 }
+            }
+        });
+
+        userListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                startActivity(new Intent(getApplicationContext(),
+                        UserFeedActivity.class).putExtra("username", usernames.get(position)));
             }
         });
     }
