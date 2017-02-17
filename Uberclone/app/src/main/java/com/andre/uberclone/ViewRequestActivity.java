@@ -22,6 +22,7 @@ import com.parse.ParseException;
 import com.parse.ParseGeoPoint;
 import com.parse.ParseObject;
 import com.parse.ParseQuery;
+import com.parse.ParseUser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ public class ViewRequestActivity extends Activity {
     private ListView requestListView;
     private ArrayList<String> requests;
     private ArrayList<LatLng> requestLatLng;
+    private ArrayList<String> usernames;
     private ArrayAdapter adapter;
 
     private LocationManager locationManager;
@@ -44,6 +46,7 @@ public class ViewRequestActivity extends Activity {
         setTitle("Nearby Requests");
         requestListView = (ListView) findViewById(R.id.request_listview);
 
+        usernames = new ArrayList<>();
         requestLatLng = new ArrayList<>();
         requests = new ArrayList<>();
         requests.add("Getting nearby locations");
@@ -62,6 +65,7 @@ public class ViewRequestActivity extends Activity {
                         intent.putExtra("requestLongitude", requestLatLng.get(i).longitude);
                         intent.putExtra("driverLatitude", lastKnowLocation.getLatitude());
                         intent.putExtra("driverLongitude", lastKnowLocation.getLongitude());
+                        intent.putExtra("username", usernames.get(i));
 
                         startActivity(intent);
                     } catch(SecurityException e){
@@ -94,6 +98,9 @@ public class ViewRequestActivity extends Activity {
                     @Override
                     public void onLocationChanged(Location location) {
                         updateListView(location);
+
+                        ParseUser.getCurrentUser().put("location", new ParseGeoPoint(location.getLatitude(), location.getLongitude()));
+                        ParseUser.getCurrentUser().saveInBackground();
                     }
 
                     @Override
@@ -112,7 +119,7 @@ public class ViewRequestActivity extends Activity {
                     }
                 };
 
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 0, locationListener);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 30, locationListener);
 
                 Location lastKnowLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 updateListView(lastKnowLocation);
@@ -142,7 +149,7 @@ public class ViewRequestActivity extends Activity {
                 }
             };
 
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 30, locationListener);
 
             Location lastKnowLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             updateListView(lastKnowLocation);
@@ -155,10 +162,12 @@ public class ViewRequestActivity extends Activity {
 
         requests.clear();
         requestLatLng.clear();
+        usernames.clear();
         ParseQuery<ParseObject> query = ParseQuery.getQuery("Request");
 
         final ParseGeoPoint geoPoint = new ParseGeoPoint(location.getLatitude(), location.getLongitude());
         query.whereNear("location", geoPoint);
+        query.whereDoesNotExist("driverUsername");
         query.setLimit(10);
         query.findInBackground(new FindCallback<ParseObject>() {
             @Override
@@ -173,6 +182,7 @@ public class ViewRequestActivity extends Activity {
 
                                 Double distanceOneDP = (double) Math.round(distanceInKM * 10) / 10;
 
+                                usernames.add(String.valueOf(object.get("username")));
                                 requestLatLng.add(new LatLng(requestLocation.getLatitude(), requestLocation.getLongitude()));
                                 requests.add(String.valueOf(distanceOneDP) + "km");
                             }

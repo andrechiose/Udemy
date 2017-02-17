@@ -2,24 +2,70 @@ package com.andre.uberclone;
 
 import android.content.Intent;
 import android.hardware.Camera;
+import android.net.Uri;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewTreeObserver;
+import android.widget.RelativeLayout;
 
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.parse.FindCallback;
+import com.parse.ParseException;
+import com.parse.ParseObject;
+import com.parse.ParseQuery;
+import com.parse.ParseUser;
+import com.parse.SaveCallback;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class DriverLocation extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+    private Intent intent;
+
+    public void acceptRequest(View view){
+        ParseQuery<ParseObject> query = ParseQuery.getQuery("Request");
+
+        query.whereEqualTo("username" ,intent.getStringExtra("username"));
+        query.findInBackground(new FindCallback<ParseObject>() {
+            @Override
+            public void done(List<ParseObject> objects, ParseException e) {
+                if(e == null && objects.size() > 0){
+                    for(ParseObject object : objects){
+                        object.put("driverUsername", ParseUser.getCurrentUser().getUsername());
+                        object.saveInBackground(new SaveCallback() {
+                            @Override
+                            public void done(ParseException e) {
+                                if (e == null) {
+                                    Intent directionsIntent = new Intent(Intent.ACTION_VIEW,
+                                            Uri.parse("http://maps.google.com/maps?saddr=" +
+                                                    intent.getDoubleExtra("driverLatitude", 0) +
+                                                    "," + intent.getDoubleExtra("driverLongitude", 0) +
+                                                    "&daddr=" +
+                                                    intent.getDoubleExtra("requestLatitude", 0) +
+                                                    "," +
+                                                    intent.getDoubleExtra("requestLongitude", 0)));
+                                    startActivity(directionsIntent);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,6 +75,31 @@ public class DriverLocation extends FragmentActivity implements OnMapReadyCallba
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        RelativeLayout mapLayout = (RelativeLayout) findViewById(R.id.activity_main);
+        mapLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                intent = getIntent();
+
+                LatLng driverLocation = new LatLng(intent.getDoubleExtra("driverLatitude", 0),
+                        intent.getDoubleExtra("driverLongitude",0));
+                LatLng requestLocation = new LatLng(intent.getDoubleExtra("requestLatitude",0),
+                        intent.getDoubleExtra("requestLongitude",0));
+
+                Marker markerDriver = mMap.addMarker(new MarkerOptions().position(driverLocation).title("Your location"));
+                Marker markerRequest = mMap.addMarker(new MarkerOptions().position(requestLocation).title("Rider location").icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN)));
+
+                LatLngBounds.Builder builder = new LatLngBounds.Builder();
+                builder.include(markerDriver.getPosition());
+                builder.include(markerRequest.getPosition());
+
+                int padding = 100;
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(builder.build(), padding);
+
+                mMap.animateCamera(cameraUpdate);
+            }
+        });
     }
 
 
@@ -45,23 +116,5 @@ public class DriverLocation extends FragmentActivity implements OnMapReadyCallba
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        Intent intent = getIntent();
-
-        LatLng driverLocation = new LatLng(intent.getDoubleExtra("driverLatitude", 0),
-                intent.getDoubleExtra("driverLongitude",0));
-        LatLng requestLocation = new LatLng(intent.getDoubleExtra("requestLatitude",0),
-                intent.getDoubleExtra("requestLongitude",0));
-
-        Marker markerDriver = mMap.addMarker(new MarkerOptions().position(driverLocation).title("Your location"));
-        Marker markerRequest = mMap.addMarker(new MarkerOptions().position(requestLocation).title("Rider location"));
-
-        LatLngBounds.Builder builder = new LatLngBounds.Builder();
-        builder.include(markerDriver.getPosition());
-        builder.include(markerRequest.getPosition());
-
-        int padding = 30;
-        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(builder.build(), padding);
-
-        mMap.animateCamera(cameraUpdate);
     }
 }
